@@ -1,0 +1,94 @@
+Liste des commandes pour les interactions avec le serveur
+
+SIGNUP
+ Envoyé par le client
+ SIGNUP:::pseudo:::mot_de_passe
+
+---
+
+SIGNIN
+ Envoyé par le client
+ SIGNIN:::pseudo:::mot_de_passe
+
+---
+
+PORT
+ Envoyé automatiquement par le client
+  PORT:::port (le port étant automatique)
+ Réponse du serveur
+  SUCCESS:::Message ou ERROR:::Message (peu de chance que ça fasse ERROR sauf si un pirate nous attaque)
+
+---
+
+POST
+ Envoyé par le client
+  POST:::domaine:::prix:::description
+ Réponse du serveur
+  SUCCESS:::Message ou ERROR:::Message
+
+---
+
+GET_ANN
+  Envoyé par le client
+   GET_ANN
+  Réponse du serveur
+   id:::domaine:::prix:::description:::pseudoClient&&& (...)
+
+---
+
+GET_ANN_BY
+  Envoyé par le client
+   GET_ANN_BY
+  Réponse du serveur
+   id:::domaine:::prix:::description:::pseudoClient&&& (...)
+
+---
+
+REMOVE_ALL
+  Envoyé par le client
+   REMOVE_ALL
+  Réponse du serveur
+   SUCCESS:::Message ou ERROR:::Message
+
+---
+
+REMOVE_BY
+  Envoyé par le client
+   REMOVE_BY:::key:::value
+  Réponse du serveur
+   SUCCESS:::Message ou ERROR:::Message
+
+---
+
+CONNECTED_CLIENTS
+ Envoyé par le client
+  CONNECTED_CLIENTS
+ Réponse du serveur
+  ip:::port:::id:::pseudo&&& (...)
+
+---
+
+EXIT
+ Envoyé par le client
+  EXIT
+ Réponse du serveur EXIT_OK (inutile)
+
+Liste des commandes pour les interactions entre clients
+
+HELLO
+ Envoyé par le client au client serveur
+  HELLO:::pseudo
+ Réponse du client serveur
+  HELLO_BACK:::pseudo ou ERROR:::message (si l’on veut empêcher une double connexion ou de se connecter avec soit même par exemple)
+
+WHISP
+ Envoyé par un client
+  WHISP:::message
+ Aucune réponse attendue
+
+CLOSE 
+ Envoyé par un client
+  CLOSE
+ Aucune réponse attendue
+
+
