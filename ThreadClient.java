@@ -48,6 +48,7 @@ public class ThreadClient extends Thread {
                 System.out.println("le client s'est deconecté");
                 System.out.print("==> ");
                 online = false;
+                break;
             }
         }
 

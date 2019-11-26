@@ -9,9 +9,9 @@ public class Compte {
     private ArrayList<Annonce> list = new ArrayList<>();
     private String pseudo;
     private String passW;
-    private InetAddress adress;
+    private String adress;
 
-    public Compte(InetAddress adress, String pseudo, String passW){
+    public Compte(String adress, String pseudo, String passW){
         this.id = ClassId;
         this.portClient = 0;
         this.adress = adress;
@@ -56,11 +56,11 @@ public class Compte {
         this.pseudo = pseudo;
     }
 
-    public InetAddress getAdress() {
+    public String getAdress() {
         return adress;
     }
 
-    public void setAdress(InetAddress adress) {
+    public void setAdress(String adress) {
         this.adress = adress;
     }
 }
