@@ -33,9 +33,17 @@ public class ThreadClient extends Thread {
                 System.out.print("==> ");
 
                 tmp_msg  = reader.readLine(); // le hello:::pseudo
+                if(tmp_msg == null){
+                    online = false;
+                    break;
+                }
+
                 String hisPseudo = tmp_msg.split(":::")[1];
 
-                while (online && !(tmp_msg = reader.readLine()).toUpperCase().equals("CLOSE")) {
+                while (online &&
+                        (tmp_msg = reader.readLine()) != null &&
+                        !tmp_msg.toUpperCase().equals("CLOSE")) {
+
                     String [] tmptab  = tmp_msg.split(":::");
                     System.out.println("\n"+hisPseudo+" : " + tmptab[1]);
                     System.out.print(myPseudo+" : ");

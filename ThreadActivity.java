@@ -2,6 +2,7 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -33,7 +34,7 @@ public class ThreadActivity extends Thread {
                     InetAddress addr = a.nextElement();
                     res = addr.getHostAddress();
                     String [] tmp = res.split("\\.");
-                    if(tmp[0].equals("172")) return res;
+                    if(tmp.length== 4) return res;
                 }
             }
 
@@ -47,16 +48,6 @@ public class ThreadActivity extends Thread {
     public void run() {
 
 
-        String msg1 = "Welcome  !:::";
-        String msg2 = "Liste des commandes ::::";
-        String msg3 = "\tGET_ANN : pour voir tout les annonces :::";
-        String msg4 = "\tGET_ANN_BY (prix/domaine --> key) (value) : filtrer les annonces:::";
-        String msg5 = "\tPOST : ajouter une annonce:::";
-        String msg6 = "\tREMOVE_BY (id) : supprimer une de ses annonces:::";
-        String msg7 = "\tREMOVE_ALL : supprimer tout ses annonces:::";
-        String msg8 = "\tGET_CLIENTS : voir tout les clients connectés au serveur:::";
-        String msg9 = "\tGET_CLIENTS_BY :(pseudo/adr etc)(value) : filtrer les clients:::";
-        String msg10 = "\tEXIT : pour se deconnecter:::\n";
         String rec_msg = "";
 
         String loginMsg = "Welcome !\n";
@@ -75,10 +66,8 @@ public class ThreadActivity extends Thread {
                 e.printStackTrace();
             }
             String adr = s;
-            System.out.println("ADDRR : "+adr);
             outToClient.writeBytes(loginMsg); // envoie de message
 
-            System.out.println("HI");
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
 
             while (true) {
@@ -86,7 +75,6 @@ public class ThreadActivity extends Thread {
                 //if(rec_msg == null) break;
                 String[] tab = rec_msg.split(":::");
                 String cr = tab[0];
-                System.out.println("ARTHURR : " + rec_msg);
                 boolean allGood = false;
                 switch (cr) {
                     case "SIGNUP":
@@ -95,7 +83,6 @@ public class ThreadActivity extends Thread {
                         if (!verifExistAcc(Server.cli_list, tab[1])) {
 
                             res1 = "SUCCESS:::Account has been created ! \n";
-                            System.out.println("Success !");
                             Compte c = new Compte(adr, tab[1], tab[2]);
                             client = c;
                             Server.cli_list.add(c);
@@ -131,15 +118,13 @@ public class ThreadActivity extends Thread {
                         outToClient.flush();
                         break;
                     default:
-                        System.out.println("Please try to SignUp or SignIn");
+
                 }
                 if (allGood) {
                     break;
                 }
 
             }
-            outToClient.writeBytes(msg1 + msg2 + msg3 + msg4 + msg5 + msg6 + msg7 + msg8 + msg9 + msg10); // envoie de message
-            outToClient.flush();
 
             rec_msg = inFromClient.readLine();
             String[] tmp = rec_msg.split(":::");
@@ -151,14 +136,20 @@ public class ThreadActivity extends Thread {
             }
 
 
-            while (!(rec_msg = inFromClient.readLine()).equals("EXIT")) {
+            while (true) {
+                rec_msg = inFromClient.readLine();
+                if(rec_msg == null){
+                    rec_msg = "EXIT";
+                    System.out.println("Un clinet s'est deconnecté d'une maniere inapproprié");
+                }
+                boolean b = rec_msg.equals("EXIT");
+                if(b) break;
                 // tant qu'il deco pas on lit etc.. ff chu blasé il est 9h13 j ai la flm d aller en cours de spec
                 // port du client
                 String tab[] = rec_msg.split(":::");
                 String clientRequest = tab[0];
                 switch (clientRequest) {
                     case "POST":
-
                         Annonce a = new Annonce(tab[1], Integer.parseInt(tab[2]), tab[3], client.getPseudo());
                         Server.ann_list.add(a);
                         System.out.println("\nUne nouvelle annonce ajouté par le client : " + client.getPseudo());
@@ -170,32 +161,60 @@ public class ThreadActivity extends Thread {
                         break;
 
                     case "GET_ANN":
-
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage de tous les annonces");
-                        String res = makeMsgAnn(Server.ann_list);
-                        outToClient.writeBytes(res); // envoie de l'ensemble des annonces a partir de la list
+                        int nb_msg = Server.ann_list.size();
+                        outToClient.writeBytes("GET_ANN:::"+nb_msg+"\n"); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
+                        int k = 0;
+                        while(k<nb_msg){
+                            System.out.println("serv envoie : "+Server.ann_list.get(k));
+                            String res = makeMsgAnn(Server.ann_list,k);
+                            outToClient.writeBytes(res); // envoie de l'ensemble des annonces a partir de la list
+                            outToClient.flush();
+                            k++;
+                        }
                         break;
-                    case "GET_CLIENTS":
 
+                    case "GET_CLIENTS":
+                        String res;
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage des clients connectés");
-                        res = makeMsgCli(Server.cli_list);
-                        outToClient.writeBytes(res); // envoie de l'ensemble des annonces a partir de la list
+                        nb_msg = Server.cli_list.size();
+                        outToClient.writeBytes("GET_CLIENTS:::"+nb_msg+"\n"); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
+                        k = 0;
+                        while(k<nb_msg){
+                            System.out.println("serv envoie : "+Server.cli_list.get(k));
+                            res = makeMsgCli(Server.cli_list,k);
+                            outToClient.writeBytes(res); // envoie de l'ensemble des annonces a partir de la list
+                            outToClient.flush();
+                            k++;
+                        }
                         break;
 
                     case "GET_ANN_BY":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage d'une annonce " + tab[0] + tab[1] + tab[2]);
-                        String res1 = makeMsgAnnBy(Server.ann_list, tab[1].toLowerCase(), tab[2].toLowerCase());
-                        outToClient.writeBytes(res1); // envoie de l'ensemble des annonces a partir de la list
+                        ArrayList<String> res1 = makeMsgAnnBy(Server.ann_list, tab[1].toLowerCase(), tab[2].toLowerCase());
+                        outToClient.writeBytes("GET_ANN_BY:::"+res1.size()+"\n"); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
+                        k = 0;
+                        while(k<res1.size()){
+                            outToClient.writeBytes(res1.get(k));
+                            outToClient.flush();
+                            k++;
+                        }
                         break;
 
                     case "GET_CLIENTS_BY":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage d'un client " + tab[0] + tab[1] + tab[2]);
-                        res1 = makeMsgCliBy(Server.cli_list, tab[1].toLowerCase(), tab[2].toLowerCase());
-                        outToClient.writeBytes(res1); // envoie de l'ensemble des annonces a partir de la list
+                        res1 = makeMsgCliBy(Server.cli_list, tab[1].toLowerCase(), tab[2]);
+                        outToClient.writeBytes("GET_CLIENTS_BY:::"+res1.size()+"\n"); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
+                        k = 0;
+                        while(k<res1.size()){
+                            outToClient.writeBytes(res1.get(k));
+                            outToClient.flush();
+                            k++;
+                        }
                         break;
 
                     case "REMOVE_ALL":
@@ -206,11 +225,18 @@ public class ThreadActivity extends Thread {
                     case "REMOVE_BY":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande de supprimer l'annonce numero " + tab[2]);
                         boolean verif = isMyAnnounce(client.getPseudo(), Integer.parseInt(tab[2]));
-                        res1 = makeMsgRemoveBy(verif);
-                        outToClient.writeBytes(res1);
+                        String r = makeMsgRemoveBy(verif);
+                        outToClient.writeBytes(r);
                         outToClient.flush();
                         break;
-
+                    case "PORT":
+                        System.out.println("\nLe client  : " + client.getPseudo() + " demande de changer son port d'ecoute ");
+                        for (Compte bo: Server.cli_list) {
+                            if(bo.getPseudo().equals(client.getPseudo())){
+                                bo.setPortClient(Integer.parseInt(tab[1]));
+                            }
+                        }
+                        break;
                     default:
                         System.out.println("R.I.P");
 
@@ -299,47 +325,39 @@ public class ThreadActivity extends Thread {
         }
     }
 
-    public String makeMsgAnn(ArrayList<Annonce> list) {
-        String res = "";
-        for (Annonce a : list) {
-            res += a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "&&&"; // pour differencier
-        }
-        res += "\n";
-        return res;
+    public String makeMsgAnn(ArrayList<Annonce> list, int index) {
+        return list.get(index).getAnnonceId() + ":::" + list.get(index).getDomaine() + ":::" + list.get(index).getPrix() + ":::" + list.get(index).getDescriptif() + ":::" + list.get(index).getPseudo()+"\n"; // pour differencier
     }
 
-    public String makeMsgCli(ArrayList<Compte> list) {
-        String res = "";
-        for (Compte a : list) {
-            if (a.getPseudo() != client.getPseudo()) {
-                res += a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "&&&"; // pour differencier
-            }
-        }
-        res += "\n";
-        return res;
+    public String makeMsgCli(ArrayList<Compte> list, int index) {
+        return list.get(index).getId()+":::"+list.get(index).getPseudo()+":::"+list.get(index).getAdress()+":::"+list.get(index).getPortClient()+"\n";
     }
 
-    public String makeMsgAnnBy(ArrayList<Annonce> list, String byWhat, String contentOfWhat) {
+    public ArrayList<String> makeMsgAnnBy(ArrayList<Annonce> list, String byWhat, String contentOfWhat) {
         String res = "";
+        ArrayList<String> tmp = new ArrayList<>();
         switch (byWhat) {
             case "id":
                 for (Annonce a : list) {
                     if (a.getAnnonceId() == Integer.parseInt(contentOfWhat)) {
-                        res += a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "&&&";
+                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
             case "domaine":
                 for (Annonce a : list) {
                     if (a.getDomaine().equals(contentOfWhat)) {
-                        res += a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "&&&";
+                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
             case "prix":
                 for (Annonce a : list) {
                     if (a.getPrix() == Integer.parseInt(contentOfWhat)) {
-                        res += a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "&&&";
+                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
@@ -347,38 +365,42 @@ public class ThreadActivity extends Thread {
                 System.out.println("R.I.P");
         }
 
-        res += "\n";
-        return res;
+        return tmp;
     }
 
-    public String makeMsgCliBy(ArrayList<Compte> list, String byWhat, String contentOfWhat) throws UnknownHostException {
+    public ArrayList<String> makeMsgCliBy(ArrayList<Compte> list, String byWhat, String contentOfWhat) throws UnknownHostException {
         String res = "";
+        ArrayList<String> tmp = new ArrayList<>();
         switch (byWhat) {
             case "id":
                 for (Compte a : list) {
                     if (a.getId() == Integer.parseInt(contentOfWhat)) {
-                        res += a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "&&&";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
             case "pseudo":
                 for (Compte a : list) {
                     if (a.getPseudo().equals(contentOfWhat)) {
-                        res += a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "&&&";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
             case "adress":
                 for (Compte a : list) {
                     if (a.getAdress().equals(contentOfWhat)/* InetAddress.getByName(contentOfWhat)*/) {
-                        res += a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "&&&";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
             case "port":
                 for (Compte a : list) {
                     if (a.getPortClient() == Integer.parseInt(contentOfWhat)) {
-                        res += a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "&&&";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        tmp.add(res);
                     }// pour differencier
                 }
                 break;
@@ -386,8 +408,8 @@ public class ThreadActivity extends Thread {
                 System.out.println("R.I.P");
         }
 
-        res += "\n";
-        return res;
+        //res += "\n";
+        return tmp;
     }
 
     public void notifyClient(ArrayList<Compte> list, String pseudo) throws IOException {

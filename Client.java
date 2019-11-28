@@ -1,11 +1,12 @@
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 
 public class Client {
 
-
+    static String n = "";
 
     public static void main(String[] args) {
 
@@ -64,11 +65,20 @@ public class Client {
                     }
                 }
             }
+            String msg2 = "\nListe des commandes \n";
+            String msg3 = "\tGET_ANN : pour voir tout les annonces \n";
+            String msg4 = "\tGET_ANN_BY (prix/domaine --> key) (value) : filtrer les annonces\n";
+            String msg5 = "\tPOST : ajouter une annonce\n";
+            String msg6 = "\tREMOVE_BY (id) : supprimer une de ses annonces\n";
+            String msg7 = "\tREMOVE_ALL : supprimer tout ses annonces\n";
+            String msg8 = "\tGET_CLIENTS : voir tout les clients connectés au serveur\n";
+            String msg9 = "\tGET_CLIENTS_BY :(pseudo/adr etc)(value) : filtrer les clients\n";
+            String msg10 = "\tEXIT : pour se deconnecter";
+            String res = msg2+msg3+msg4+msg5+msg6+msg7+msg8+msg9+msg10;
+            System.out.println(res);
+            //String
 
-            String y = inFromServer.readLine();
-            String[] res = y.split(":::"); // menu
-            for (int i = 0; i < 9; i++)
-                System.out.println(res[i]);
+            String rec_msg = "";
 
             ServerSocket clientSV = new ServerSocket(0);
             outToServer.writeBytes("PORT:::" + clientSV.getLocalPort()+'\n');
@@ -91,7 +101,6 @@ public class Client {
                 outToServer.writeBytes(msg_to_send + '\n');
                 outToServer.flush();
 
-                System.out.println("online : "+tc.online);
                 if (tc.online) {
 
                     if(clientRequest.toUpperCase().equals("OK")){
@@ -100,19 +109,8 @@ public class Client {
                         String tmp;
                         outToClient.writeBytes("HELLO:::"+pseudo+"\n");
                         outToClient.flush();
-                        while (true) {
-                            System.out.print(pseudo+" : ");
-                            Scanner sc = new Scanner(System.in);
-                            tmp = sc.nextLine();
-                            if(s.isClosed()) break;
-                            if(tmp.toUpperCase().equals("CLOSE")){
-                                outToClient.writeBytes("CLOSE\n");
-                            }else {
-                                outToClient.writeBytes("WHISP:::"+tmp + "\n");
-                            }
-                            outToClient.flush();
-                            if (tmp.toUpperCase().equals("CLOSE")) break;
-                        }
+                        writeInSoc(s,outToClient,pseudo);
+
                         tc.online = false;
                         outToClient.close();
                         s.close();
@@ -129,20 +127,7 @@ public class Client {
                 } else {
 
                     if (clientRequest.equals("GET_ANN") || clientRequest.equals("GET_ANN_BY")) {
-                        String x = inFromServer.readLine();
-                        String[] annonce = x.split("&&&");
-                        if (x.equals("")) {
-                            System.out.println("Pas d'annonce pour le moment !");
-                        } else {
-                            for (String s : annonce) {
-                                String[] tmp = s.split(":::");
-                                System.out.println("ID      : " + tmp[0]);
-                                System.out.println("Domaine : " + tmp[1]);
-                                System.out.println("Prix    : " + tmp[2]);
-                                System.out.println("Descrip : " + tmp[3]);
-                                System.out.println("Client  : " + tmp[4] + "\n");
-                            }
-                        }
+                        printGetResult(inFromServer);
                     } else if (clientRequest.equals("REMOVE_BY")) {
                         String x = inFromServer.readLine();
                         System.out.println("Removed : " + x);
@@ -150,52 +135,42 @@ public class Client {
                         String x = inFromServer.readLine();
                         System.out.println(x);
                     } else if (clientRequest.equals("GET_CLIENTS") || clientRequest.equals("GET_CLIENTS_BY")) {
-                        //try {
-
-                        String x = inFromServer.readLine();
-                        String[] clients = x.split("&&&");
-                        if (x.equals("")) {
-                            System.out.println("Vous êtes le seul connecté pour le moment (business ain't going well in these dark days :/ !)");
-                        } else {
-                            for (String s : clients) {
-                                String[] tmp = s.split(":::");
-                                System.out.println("ID      : " + tmp[0]);
-                                System.out.println("Pseudo  : " + tmp[1]);
-                                System.out.println("Adresse : " + tmp[2]);
-                                if (Integer.parseInt(tmp[3]) != 0)
-                                    System.out.println("Port    : " + tmp[3]);
-
-                            }
-                        }
+                        printGetResult(inFromServer);
                     } else if (clientRequest.equals("CONNECT_TO")) {
 
-                        System.out.println("Connection established with another client !! ");
-                        Socket clientSoc = new Socket(tab[1], Integer.parseInt(tab[2]));
-                        System.out.println("in adr : " + clientSoc.getInetAddress() + ", port : " + clientSoc.getPort());
-                        String env_msg;
-                        DataOutputStream outToClient = new DataOutputStream(clientSoc.getOutputStream());
-                        outToClient.writeBytes("HELLO:::"+pseudo+"\n");
-                        outToClient.flush();
-                        ThreadReaderC x = new ThreadReaderC(clientSoc,pseudo);
-                        x.start();
-                        while (true) {
-                            System.out.print(pseudo+" : ");
-                            Scanner s = new Scanner(System.in);
-                            env_msg = s.nextLine();
-                            if (clientSoc.isClosed()) {
-                                System.out.println("the communication is over");
-                                break;
+                        System.out.println("Trying to establish connection with client: "+tab[1]);
+                        outToServer.writeBytes("GET_CLIENTS_BY:::PSEUDO:::"+tab[1]+'\n');
+                        outToServer.flush();
+                        String x = inFromServer.readLine().split(":::")[0]; // get_client_by:::size
+                        System.out.println("x : "+x);
+                        if (x.equals("0")) {
+                            System.out.println("Client non existant !");
+                        } else {
+                            String[] tmp = inFromServer.readLine().split(":::");
+                            if (Integer.parseInt(tmp[3]) != 0){
+                                Socket clientSoc = new Socket(tmp[2], Integer.parseInt(tmp[3]));
+                                System.out.println("in adr : " + clientSoc.getInetAddress() + ", port : " + clientSoc.getPort());
+                                String env_msg;
+                                DataOutputStream outToClient = new DataOutputStream(clientSoc.getOutputStream());
+                                outToClient.writeBytes("HELLO:::" + pseudo + "\n");
+                                outToClient.flush();
+                                ThreadReaderC b = new ThreadReaderC(clientSoc, pseudo);
+                                b.start();
+                                writeInSoc(clientSoc,outToClient,pseudo);
+                                outToClient.close();
+                                clientSoc.close();
+                            }else{
+                                System.out.println("Disconnected Client !");
                             }
-                            if(env_msg.toUpperCase().equals("CLOSE")){
-                                outToClient.writeBytes("CLOSE\n");
-                            } else {
-                                outToClient.writeBytes("WHISP:::"+env_msg + "\n");
-                            }
-                            outToClient.flush();
-                            if (env_msg.toUpperCase().equals("CLOSE")) break;
                         }
-                        outToClient.close();
-                        clientSoc.close();
+
+                    }else if(clientRequest.equals("PORT")){
+                        tc.interrupt();
+                        clientSV.close();
+                        clientSV = new ServerSocket(Integer.parseInt(tab[1]));
+                        tc = new ThreadClient(clientSV,pseudo);
+                        tc.start();
+                        System.out.println("Port mis à jour à: "+tab[1]);
                     }
                     System.out.print("\n==> ");
                 }
@@ -215,6 +190,63 @@ public class Client {
         }
     }
 
+    public static void writeInSoc(Socket s,DataOutputStream outToClient, String pseudo) throws IOException {
+        String tmp;
+        while (true) {
+            System.out.print(pseudo+" : ");
+            Scanner sc = new Scanner(System.in);
+            tmp = sc.nextLine();
+            if(s.isClosed()) break;
+            if(tmp.toUpperCase().equals("CLOSE")){
+                outToClient.writeBytes("CLOSE\n");
+            }else {
+                outToClient.writeBytes("WHISP:::"+tmp + "\n");
+            }
+            outToClient.flush();
+            if (tmp.toUpperCase().equals("CLOSE")) break;
+        }
+    }
+
+    public static void printGetResult(BufferedReader inFromServer) throws IOException {
+        String res = inFromServer.readLine();
+        String tmp0 [] = res.split(":::");
+        int size = Integer.parseInt(tmp0[1]);
+        int k = 0;
+        while(k<size){
+            String s = inFromServer.readLine();
+            String[] tmp = s.split(":::");
+            if(tmp0[0].equals("GET_ANN") || (tmp0[0].equals("GET_ANN_BY"))){
+                System.out.println("ID      : " + tmp[0]);
+                System.out.println("Domaine : " + tmp[1]);
+                System.out.println("Prix    : " + tmp[2]);
+                System.out.println("Descrip : " + tmp[3]);
+                System.out.println("Client  : " + tmp[4] + "\n");
+            } else { // get_clients or get_clients_by
+                System.out.println("ID      : " + tmp[0]);
+                System.out.println("PSEUDO : " + tmp[1]);
+                System.out.println("ADRESS    : " + tmp[2]);
+                System.out.println("PORT : " + tmp[3]);
+            }
+
+            k++;
+        }
+        if(k==0) System.out.println("No announce found ! :s");
+    }
+
+    public static boolean isPortAvailable(String host, int port){
+        boolean result = true;
+
+        try {
+
+            (new Socket(host, port)).close();
+            // Successful connection means the port is taken.
+            result = false;
+        } catch (IOException e) {
+            // Port Isn't Used !!
+        }
+
+        return result;
+    }
 
     public static String getMsgToSend(String currStr) {
 
@@ -260,7 +292,7 @@ public class Client {
                 sc2 = new Scanner(System.in);
                 System.out.print("\tBy 'ID' , 'PSEUDO','ADRESS','PORT' ? ");
                 byWhat = sc2.nextLine();
-                System.out.print("\t Valeur : ");
+                System.out.print("\tValeur : ");
                 contentOfWhat = sc2.nextLine();
                 return "GET_CLIENTS_BY:::" + byWhat + ":::" + contentOfWhat;
 
@@ -274,14 +306,22 @@ public class Client {
                 return "REMOVE_BY:::ID:::" + byWhat;
 
             case "CONNECT_TO":
-                String ip, port;
+                String pseudo;
                 sc2 = new Scanner(System.in);
-                System.out.print("\tAdress : ");
-                ip = sc2.nextLine();
-                System.out.print("\t Port  : ");
-                port = sc2.nextLine();
-                return "CONNECT_TO:::" + ip + ":::" + port;
+                System.out.print("\tPseudo : ");
+                pseudo = sc2.nextLine();
 
+                return "CONNECT_TO:::" + pseudo;
+
+            case "SET_PORT":
+                sc2 = new Scanner(System.in);
+                System.out.println("\tPort : ");
+                String port = sc2.nextLine();
+                if(isPortAvailable("localhost",Integer.parseInt(port))) {
+                    return "PORT:::" + port;
+                }
+                else
+                    System.out.println("Port isn't available");
             case "OK":
                 return "OK";
 

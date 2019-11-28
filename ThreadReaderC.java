@@ -1,10 +1,6 @@
-import javax.sound.midi.Soundbank;
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Scanner;
 
 public class ThreadReaderC extends Thread {
 
@@ -27,8 +23,15 @@ public class ThreadReaderC extends Thread {
             String rec_msg;
             online = true;
             rec_msg  = inFromClient.readLine(); // le hello:::pseudo
-            String hisPseudo = rec_msg.split(":::")[1];
-            while( !connectionSocket.isClosed() &&  !(rec_msg = inFromClient.readLine()).toUpperCase().equals("CLOSE")){
+            String hisPseudo = "";
+            String [] tabtmp = rec_msg.split(":::");
+            if(tabtmp.length > 1)  hisPseudo = rec_msg.split(":::")[1]; // le cas ou close est envoyé sur un refus de connexion
+            else hisPseudo = "err";
+            while(  !hisPseudo.equals("err") &&
+                    !connectionSocket.isClosed() &&
+                    (rec_msg = inFromClient.readLine()) != null &&
+                    !(rec_msg).toUpperCase().equals("CLOSE")){
+
                 String [] tmptab  = rec_msg.split(":::");
                 System.out.println("\n"+hisPseudo+": "+tmptab[1]);
                 System.out.print(mypseudo+" : ");
@@ -38,7 +41,6 @@ public class ThreadReaderC extends Thread {
         } catch (Exception exp){
             System.out.println("connexion is over");
             System.out.print("==> ");
-
         }
     }
 
