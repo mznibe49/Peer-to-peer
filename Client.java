@@ -1,23 +1,31 @@
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.Scanner;
 
 
 public class Client {
-
-    static String n = "";
-
     public static void main(String[] args) {
 
+        System.setProperty("javax.net.ssl.trustStore",
+                "client.jks");
 
+        System.setProperty("javax.net.ssl.trustStorePassword", "EZ4ENCE");
         try {
 
             String msg_received = "";
-            Socket clientSocket = new Socket(args[0], 1027);
+            SSLSocketFactory socketFactory = (SSLSocketFactory)
+                    SSLSocketFactory.getDefault();
+            SSLSocket clientSocket =
+                    (SSLSocket)socketFactory.createSocket(args[0], 1027);
+
 
             BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            msg_received = inFromServer.readLine().replaceAll(":::", "\n");
+            msg_received = inFromServer.readLine();
+            msg_received = AES.decrypt(msg_received, "EZ4ENCE").replaceAll(":::", "\n");
 
             System.out.println("FROM SERVER: " + msg_received);
 
@@ -38,16 +46,18 @@ public class Client {
                         pseudo = rep1;
                         System.out.println("enter your password : ");
                         String rep2 = sc.nextLine();
-                        outToServer.writeBytes("SIGNIN:::" + rep1 + ":::" + rep2+'\n');
+                        outToServer.writeBytes(AES.encrypt("SIGNIN:::" + rep1 + ":::" + rep2, "EZ4ENCE")+'\n');
                         outToServer.flush();
                         break;
                     case "N":
-                        System.out.println("enter your pseudo : ");
+                        System.out.println("Enter your pseudo : ");
                         String rep3 = sc.nextLine();
                         pseudo = rep3;
-                        System.out.println("enter your password : ");
-                        String rep4 = sc.nextLine();
-                        outToServer.writeBytes("SIGNUP:::" + rep3 + ":::" + rep4+'\n');
+                        Console console = System.console();
+                        char[] hidden = console.readPassword("Enter your password : ", '*');
+                        String rep4 = new String(hidden);
+                        System.out.println(AES.encrypt("SIGNIN:::" + rep3 + ":::" + rep4, "EZ4ENCE")) ;
+                        outToServer.writeBytes(AES.encrypt("SIGNUP:::" + rep3 + ":::" + rep4, "EZ4ENCE")+'\n');
                         outToServer.flush();
                         break;
                     default:
@@ -56,7 +66,11 @@ public class Client {
                 }
 
                 if (rep.equals("O") || rep.equals("N")) {
+
                     String x = inFromServer.readLine();
+                    System.out.println(x);
+                    x= AES.decrypt(x, "EZ4ENCE");
+                    System.out.println(x);
                     x = x.trim();
                     String[] res = x.split(":::");
                     System.out.println(res[0] + " : " + res[1]);
@@ -81,7 +95,8 @@ public class Client {
             String rec_msg = "";
 
             ServerSocket clientSV = new ServerSocket(0);
-            outToServer.writeBytes("PORT:::" + clientSV.getLocalPort()+'\n');
+            outToServer.writeBytes(AES.encrypt("PORT:::" + clientSV.getLocalPort(), "EZ4ENCE")+'\n');
+
             outToServer.flush();
 
             ThreadClient tc = new ThreadClient(clientSV,pseudo);
@@ -93,12 +108,11 @@ public class Client {
                 if ((currStr = inFromUser.readLine()).toUpperCase().equals("EXIT")) {
                     break;
                 }
-
-                String msg_to_send = getMsgToSend(currStr);
+                String msg_to_send = getMsgToSend(currStr,inFromServer,outToServer);
                 String[] tab = msg_to_send.split(":::");
                 String clientRequest = tab[0];
 
-                outToServer.writeBytes(msg_to_send + '\n');
+                outToServer.writeBytes(AES.encrypt(msg_to_send , "EZ4ENCE")+'\n');
                 outToServer.flush();
 
                 if (tc.online) {
@@ -107,7 +121,7 @@ public class Client {
                         Socket s = tc.connectionSocket;
                         DataOutputStream outToClient = new DataOutputStream(s.getOutputStream());
                         String tmp;
-                        outToClient.writeBytes("HELLO:::"+pseudo+"\n");
+                        outToClient.writeBytes(AES.encrypt("HELLO:::"+pseudo , "EZ4ENCE")+'\n');
                         outToClient.flush();
                         writeInSoc(s,outToClient,pseudo);
 
@@ -118,7 +132,7 @@ public class Client {
                         tc.online = false;
                         Socket s = tc.connectionSocket;
                         DataOutputStream outToClient = new DataOutputStream(s.getOutputStream());
-                        outToClient.writeBytes( "CLOSE\n");
+                        outToClient.writeBytes(AES.encrypt("CLOSE" , "EZ4ENCE")+'\n');
                         outToClient.flush();
                         outToClient.close();
                         s.close();
@@ -130,29 +144,40 @@ public class Client {
                         printGetResult(inFromServer);
                     } else if (clientRequest.equals("REMOVE_BY")) {
                         String x = inFromServer.readLine();
-                        System.out.println("Removed : " + x);
-                    } else if (clientRequest.equals("POST")) {
+                        x =  AES.decrypt(x, "EZ4ENCE");
+                        System.out.println(x);
+                    }  else if (clientRequest.equals("REMOVE_ALL")) {
                         String x = inFromServer.readLine();
+                        x = AES.decrypt(x, "EZ4ENCE");
+                        System.out.println(x);
+                    }else if (clientRequest.equals("POST")) {
+                        String x = inFromServer.readLine();
+                        x =AES.decrypt(x, "EZ4ENCE");
                         System.out.println(x);
                     } else if (clientRequest.equals("GET_CLIENTS") || clientRequest.equals("GET_CLIENTS_BY")) {
                         printGetResult(inFromServer);
                     } else if (clientRequest.equals("CONNECT_TO")) {
 
                         System.out.println("Trying to establish connection with client: "+tab[1]);
-                        outToServer.writeBytes("GET_CLIENTS_BY:::PSEUDO:::"+tab[1]+'\n');
+                        outToServer.writeBytes(AES.encrypt("GET_CLIENTS_BY:::PSEUDO:::"+tab[1] , "EZ4ENCE")+'\n');
                         outToServer.flush();
-                        String x = inFromServer.readLine().split(":::")[0]; // get_client_by:::size
+                        String x = inFromServer.readLine(); // get_client_by:::size
+                        x = AES.decrypt(x, "EZ4ENCE").split(":::")[1];
                         System.out.println("x : "+x);
                         if (x.equals("0")) {
                             System.out.println("Client non existant !");
                         } else {
-                            String[] tmp = inFromServer.readLine().split(":::");
+
+                            x = inFromServer.readLine();
+                            x = AES.decrypt(x, "EZ4ENCE");
+                            System.out.println("HOHO :"+x);
+                            String[] tmp  = x.split(":::");
                             if (Integer.parseInt(tmp[3]) != 0){
                                 Socket clientSoc = new Socket(tmp[2], Integer.parseInt(tmp[3]));
                                 System.out.println("in adr : " + clientSoc.getInetAddress() + ", port : " + clientSoc.getPort());
                                 String env_msg;
                                 DataOutputStream outToClient = new DataOutputStream(clientSoc.getOutputStream());
-                                outToClient.writeBytes("HELLO:::" + pseudo + "\n");
+                                outToClient.writeBytes(AES.encrypt("HELLO:::" + pseudo  , "EZ4ENCE")+'\n');
                                 outToClient.flush();
                                 ThreadReaderC b = new ThreadReaderC(clientSoc, pseudo);
                                 b.start();
@@ -178,7 +203,7 @@ public class Client {
 
             System.out.println("Connexion closed with server !");
             // msg du client au service pour indiquer la deconnexion
-            outToServer.writeBytes("EXIT" + '\n');
+            outToServer.writeBytes(AES.encrypt("EXIT"  , "EZ4ENCE")+'\n');
             outToServer.flush();
             clientSV.close();
             clientSocket.close();
@@ -198,9 +223,9 @@ public class Client {
             tmp = sc.nextLine();
             if(s.isClosed()) break;
             if(tmp.toUpperCase().equals("CLOSE")){
-                outToClient.writeBytes("CLOSE\n");
+                outToClient.writeBytes(AES.encrypt("CLOSE"  , "EZ4ENCE")+'\n');
             }else {
-                outToClient.writeBytes("WHISP:::"+tmp + "\n");
+                outToClient.writeBytes(AES.encrypt("WHISP:::" + tmp  , "EZ4ENCE")+'\n');
             }
             outToClient.flush();
             if (tmp.toUpperCase().equals("CLOSE")) break;
@@ -209,11 +234,13 @@ public class Client {
 
     public static void printGetResult(BufferedReader inFromServer) throws IOException {
         String res = inFromServer.readLine();
+        res = AES.decrypt(res, "EZ4ENCE");
         String tmp0 [] = res.split(":::");
         int size = Integer.parseInt(tmp0[1]);
         int k = 0;
         while(k<size){
             String s = inFromServer.readLine();
+            s = AES.decrypt(s, "EZ4ENCE");
             String[] tmp = s.split(":::");
             if(tmp0[0].equals("GET_ANN") || (tmp0[0].equals("GET_ANN_BY"))){
                 System.out.println("ID      : " + tmp[0]);
@@ -248,7 +275,7 @@ public class Client {
         return result;
     }
 
-    public static String getMsgToSend(String currStr) {
+    public static String getMsgToSend(String currStr,BufferedReader inFromServer,DataOutputStream outToServer) {
 
         switch (currStr.toUpperCase()) {
 
@@ -313,15 +340,48 @@ public class Client {
 
                 return "CONNECT_TO:::" + pseudo;
 
-            case "SET_PORT":
+            case "PORT":
                 sc2 = new Scanner(System.in);
                 System.out.println("\tPort : ");
                 String port = sc2.nextLine();
-                if(isPortAvailable("localhost",Integer.parseInt(port))) {
-                    return "PORT:::" + port;
+                boolean av = true;
+                try {
+                    outToServer.writeBytes(AES.encrypt("GET_CLIENTS_BY:::PORT:::"+port  , "EZ4ENCE")+'\n');
+                    outToServer.flush();
+                    String myIp = getIpFromLocal();
+                    String res = inFromServer.readLine();
+                    res = AES.decrypt(res, "EZ4ENCE");
+                    String x = res.split(":::")[1]; // get_client_by:::size
+                    System.out.println("x : "+x);
+                    if (x.equals("0")) {
+                        if(isPortAvailable("localhost",Integer.parseInt(port))) {
+                            return "PORT:::" + port;
+                        }
+                    }else{
+                        String tmp0 [] = res.split(":::");
+                        int size = Integer.parseInt(x);
+                        int k = 0;
+                        while(k<size){
+                            String s = inFromServer.readLine();
+                            s = AES.decrypt(s, "EZ4ENCE");
+                            String[] tmp = s.split(":::");
+                            if(tmp[3].equals(port) && tmp[2].equals(myIp)){
+                                av = false;
+                                break;
+                            }
+                            k++;
+                        }
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                else
+                if(av){
+                    return "PORT:::" + port;
+                }else{
                     System.out.println("Port isn't available");
+                }
+                break;
             case "OK":
                 return "OK";
 
@@ -333,4 +393,25 @@ public class Client {
 
         return "";
     }
+    public static String getIpFromLocal() {
+        String res = "";
+        try {
+            Enumeration<NetworkInterface> n = NetworkInterface.getNetworkInterfaces();
+            for (; n.hasMoreElements(); ) {
+                NetworkInterface e = n.nextElement();
+                Enumeration<InetAddress> a = e.getInetAddresses();
+                for (; a.hasMoreElements(); ) {
+                    InetAddress addr = a.nextElement();
+                    res = addr.getHostAddress();
+                    String [] tmp = res.split("\\.");
+                    if(tmp.length== 4) return res;
+                }
+            }
+
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return "";
+    }
 }
+

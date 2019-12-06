@@ -23,6 +23,7 @@ public class ThreadReaderC extends Thread {
             String rec_msg;
             online = true;
             rec_msg  = inFromClient.readLine(); // le hello:::pseudo
+            rec_msg = AES.decrypt(rec_msg, "EZ4ENCE");
             String hisPseudo = "";
             String [] tabtmp = rec_msg.split(":::");
             if(tabtmp.length > 1)  hisPseudo = rec_msg.split(":::")[1]; // le cas ou close est envoyé sur un refus de connexion
@@ -30,8 +31,8 @@ public class ThreadReaderC extends Thread {
             while(  !hisPseudo.equals("err") &&
                     !connectionSocket.isClosed() &&
                     (rec_msg = inFromClient.readLine()) != null &&
-                    !(rec_msg).toUpperCase().equals("CLOSE")){
-
+                    !(rec_msg).toUpperCase().equals(AES.encrypt("CLOSE","EZ4ENCE"))){
+                rec_msg = AES.decrypt(rec_msg, "EZ4ENCE");
                 String [] tmptab  = rec_msg.split(":::");
                 System.out.println("\n"+hisPseudo+": "+tmptab[1]);
                 System.out.print(mypseudo+" : ");

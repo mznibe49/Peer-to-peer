@@ -33,20 +33,23 @@ public class ThreadClient extends Thread {
                 System.out.print("==> ");
 
                 tmp_msg  = reader.readLine(); // le hello:::pseudo
+
                 if(tmp_msg == null){
                     online = false;
                     break;
                 }
-
+                tmp_msg  = AES.decrypt(tmp_msg, "EZ4ENCE");
                 String hisPseudo = tmp_msg.split(":::")[1];
 
                 while (online &&
                         (tmp_msg = reader.readLine()) != null &&
-                        !tmp_msg.toUpperCase().equals("CLOSE")) {
-
+                        !tmp_msg.toUpperCase().equals(AES.encrypt("CLOSE","EZ4ENCE"))) {
+                    tmp_msg = AES.decrypt(tmp_msg,"EZ4ENCE");
                     String [] tmptab  = tmp_msg.split(":::");
-                    System.out.println("\n"+hisPseudo+" : " + tmptab[1]);
-                    System.out.print(myPseudo+" : ");
+                    if(tmptab.length>1){
+                        System.out.println("\n"+hisPseudo+" : " + tmptab[1]);
+                        System.out.print(myPseudo+" : ");
+                    }
                 }
                 online = false;
                 reader.close();

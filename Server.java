@@ -1,4 +1,6 @@
 
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
@@ -14,9 +16,17 @@ public class Server {
     public static ArrayList<Compte> cli_list = new ArrayList<Compte>();
 
     public static void main( String [] args){
+        System.setProperty("javax.net.ssl.keyStore",
+                "server.jks");
 
+        System.setProperty("javax.net.ssl.keyStorePassword"
+                , "EZ4ENCE");
         try {
-            final ServerSocket welcomeSocket = new ServerSocket(1027);
+            SSLServerSocketFactory socketFactory =
+                    (SSLServerSocketFactory)
+                            SSLServerSocketFactory.getDefault();
+            SSLServerSocket welcomeSocket = (SSLServerSocket)
+                    socketFactory.createServerSocket(1027);
             Thread thread = new Thread(){
                 public void run(){
                     while(true) {

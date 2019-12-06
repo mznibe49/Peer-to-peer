@@ -15,6 +15,7 @@ public class ThreadActivity extends Thread {
 
     Socket connectionSocket;
     Compte client;
+
     //int idClient;
 
     public ThreadActivity(Socket connectionSocket/*, int incrementedIdClient*/) {
@@ -50,14 +51,14 @@ public class ThreadActivity extends Thread {
 
         String rec_msg = "";
 
-        String loginMsg = "Welcome !\n";
+        String loginMsg = "Welcome !";
 
         try {
             DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
             int portClient = 0;
             String s = connectionSocket.getRemoteSocketAddress().toString().split(":")[0].substring(1);
             try {
-                InetAddress Ip = InetAddress.getLocalHost();
+
                 if(s.equals("127.0.0.1")){
                     s = getIpFromLocal();
 
@@ -66,13 +67,14 @@ public class ThreadActivity extends Thread {
                 e.printStackTrace();
             }
             String adr = s;
-            outToClient.writeBytes(loginMsg); // envoie de message
+            outToClient.writeBytes(AES.encrypt(loginMsg , "EZ4ENCE")+'\n'); // envoie de message
 
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
 
             while (true) {
                 rec_msg = inFromClient.readLine();
                 //if(rec_msg == null) break;
+                rec_msg = AES.decrypt(rec_msg, "EZ4ENCE");
                 String[] tab = rec_msg.split(":::");
                 String cr = tab[0];
                 boolean allGood = false;
@@ -82,7 +84,7 @@ public class ThreadActivity extends Thread {
                         String res1 = "";
                         if (!verifExistAcc(Server.cli_list, tab[1])) {
 
-                            res1 = "SUCCESS:::Account has been created ! \n";
+                            res1 = AES.encrypt("SUCCESS:::Account has been created !", "EZ4ENCE");
                             Compte c = new Compte(adr, tab[1], tab[2]);
                             client = c;
                             Server.cli_list.add(c);
@@ -90,9 +92,9 @@ public class ThreadActivity extends Thread {
                             allGood = true;
 
                         } else {
-                            res1 = "ERROR:::Existing Account try to connect ! \n";
+                            res1 =  AES.encrypt("ERROR:::Existing Account try to connect !", "EZ4ENCE");
                         }
-                        outToClient.writeBytes(res1);
+                        outToClient.writeBytes(res1 +'\n');
                         outToClient.flush();
                         break;
                     case "SIGNIN":
@@ -101,19 +103,20 @@ public class ThreadActivity extends Thread {
                         if (verifExistAcc(Server.cli_list, tab[1])) {
                             if (verifPwd(Server.cli_list, tab[1], tab[2])) {
                                 if (!verifDejaCo(Server.cli_list, tab[1], portClient)) {
-                                    res1 = "SUCCESS:::Connected ! \n";
+                                    res1 = AES.encrypt("SUCCESS:::Connected !", "EZ4ENCE")+'\n';
                                     allGood = true;
                                     client = new Compte(adr, tab[1], tab[2]);
                                 } else {
                                     System.out.println("cl " + tab[1]);
-                                    res1 = "ERROR:::You're Already Connected ! \n";
+                                    res1 = AES.encrypt("ERROR:::You're Already Connected ! ", "EZ4ENCE")+'\n';
                                 }
                             } else {
-                                res1 = "ERROR:::Wrong Password try again ! \n";
+                                res1 =  AES.encrypt("ERROR:::Wrong Password try again !", "EZ4ENCE")+'\n';
                             }
                         } else {
-                            res1 = "ERROR:::Account doesn't exist try to create new one ! \n";
+                            res1 = AES.encrypt("ERROR:::Account doesn't exist try to create new one ! ", "EZ4ENCE")+'\n';
                         }
+                        System.out.println(res1);
                         outToClient.writeBytes(res1);
                         outToClient.flush();
                         break;
@@ -125,8 +128,11 @@ public class ThreadActivity extends Thread {
                 }
 
             }
+            //outToClient.writeBytes(msg1 + msg2 + msg3 + msg4 + msg5 + msg6 + msg7 + msg8 + msg9 + msg10); // envoie de message
+            //outToClient.flush();
 
             rec_msg = inFromClient.readLine();
+            rec_msg  = AES.decrypt(rec_msg, "EZ4ENCE");
             String[] tmp = rec_msg.split(":::");
             client.setPortClient(Integer.parseInt(tmp[1]));
             for (Compte m : Server.cli_list) {
@@ -138,6 +144,7 @@ public class ThreadActivity extends Thread {
 
             while (true) {
                 rec_msg = inFromClient.readLine();
+                rec_msg = AES.decrypt(rec_msg, "EZ4ENCE");
                 if(rec_msg == null){
                     rec_msg = "EXIT";
                     System.out.println("Un clinet s'est deconnecté d'une maniere inapproprié");
@@ -156,20 +163,21 @@ public class ThreadActivity extends Thread {
                         System.out.println("\tDomaine : " + tab[1]);
                         System.out.println("\tPrix : " + tab[2]);
                         System.out.println("\tDescription : " + tab[3]);
-                        outToClient.writeBytes("SUCCESS\n"); // envoie de l'ensemble des annonces a partir de la list
+
+                        outToClient.writeBytes(AES.encrypt("SUCCESS:::Post Created" , "EZ4ENCE")+'\n'); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
                         break;
 
                     case "GET_ANN":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage de tous les annonces");
                         int nb_msg = Server.ann_list.size();
-                        outToClient.writeBytes("GET_ANN:::"+nb_msg+"\n"); // envoie de l'ensemble des annonces a partir de la list
+                        outToClient.writeBytes(AES.encrypt("GET_ANN:::"+nb_msg , "EZ4ENCE")+'\n'); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
                         int k = 0;
                         while(k<nb_msg){
                             System.out.println("serv envoie : "+Server.ann_list.get(k));
                             String res = makeMsgAnn(Server.ann_list,k);
-                            outToClient.writeBytes(res); // envoie de l'ensemble des annonces a partir de la list
+                            outToClient.writeBytes(AES.encrypt(res , "EZ4ENCE")+'\n'); // envoie de l'ensemble des annonces a partir de la list
                             outToClient.flush();
                             k++;
                         }
@@ -179,13 +187,13 @@ public class ThreadActivity extends Thread {
                         String res;
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage des clients connectés");
                         nb_msg = Server.cli_list.size();
-                        outToClient.writeBytes("GET_CLIENTS:::"+nb_msg+"\n"); // envoie de l'ensemble des annonces a partir de la list
+                        outToClient.writeBytes(AES.encrypt("GET_CLIENTS:::"+nb_msg , "EZ4ENCE")+'\n'); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
                         k = 0;
                         while(k<nb_msg){
                             System.out.println("serv envoie : "+Server.cli_list.get(k));
                             res = makeMsgCli(Server.cli_list,k);
-                            outToClient.writeBytes(res); // envoie de l'ensemble des annonces a partir de la list
+                            outToClient.writeBytes(AES.encrypt(res , "EZ4ENCE")+'\n');  // envoie de l'ensemble des annonces a partir de la list
                             outToClient.flush();
                             k++;
                         }
@@ -194,11 +202,11 @@ public class ThreadActivity extends Thread {
                     case "GET_ANN_BY":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage d'une annonce " + tab[0] + tab[1] + tab[2]);
                         ArrayList<String> res1 = makeMsgAnnBy(Server.ann_list, tab[1].toLowerCase(), tab[2].toLowerCase());
-                        outToClient.writeBytes("GET_ANN_BY:::"+res1.size()+"\n"); // envoie de l'ensemble des annonces a partir de la list
+                        outToClient.writeBytes(AES.encrypt("GET_ANN_BY:::"+res1.size(), "EZ4ENCE")+'\n');  // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
                         k = 0;
                         while(k<res1.size()){
-                            outToClient.writeBytes(res1.get(k));
+                            outToClient.writeBytes(AES.encrypt(res1.get(k), "EZ4ENCE")+'\n');
                             outToClient.flush();
                             k++;
                         }
@@ -207,11 +215,11 @@ public class ThreadActivity extends Thread {
                     case "GET_CLIENTS_BY":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande l'affichage d'un client " + tab[0] + tab[1] + tab[2]);
                         res1 = makeMsgCliBy(Server.cli_list, tab[1].toLowerCase(), tab[2]);
-                        outToClient.writeBytes("GET_CLIENTS_BY:::"+res1.size()+"\n"); // envoie de l'ensemble des annonces a partir de la list
+                        outToClient.writeBytes(AES.encrypt("GET_CLIENTS_BY:::"+res1.size(), "EZ4ENCE")+'\n'); // envoie de l'ensemble des annonces a partir de la list
                         outToClient.flush();
                         k = 0;
                         while(k<res1.size()){
-                            outToClient.writeBytes(res1.get(k));
+                            outToClient.writeBytes(AES.encrypt(res1.get(k), "EZ4ENCE")+'\n');
                             outToClient.flush();
                             k++;
                         }
@@ -220,13 +228,15 @@ public class ThreadActivity extends Thread {
                     case "REMOVE_ALL":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande de supprimer tous ses annonces");
                         removeAllFromList(client.getPseudo());
+                        outToClient.writeBytes(AES.encrypt("SUCCESS:::Removed", "EZ4ENCE")+'\n'); // envoie de l'ensemble des annonces a partir de la list
+                        outToClient.flush();
                         break;
 
                     case "REMOVE_BY":
                         System.out.println("\nLe client  : " + client.getPseudo() + " demande de supprimer l'annonce numero " + tab[2]);
                         boolean verif = isMyAnnounce(client.getPseudo(), Integer.parseInt(tab[2]));
                         String r = makeMsgRemoveBy(verif);
-                        outToClient.writeBytes(r);
+                        outToClient.writeBytes(AES.encrypt(r, "EZ4ENCE")+'\n');
                         outToClient.flush();
                         break;
                     case "PORT":
@@ -237,6 +247,7 @@ public class ThreadActivity extends Thread {
                             }
                         }
                         break;
+
                     default:
                         System.out.println("R.I.P");
 
@@ -299,8 +310,9 @@ public class ThreadActivity extends Thread {
     }
 
     private String makeMsgRemoveBy(boolean verif) {
-        String s1 = "SUCCESS" + "\n";
-        String s2 = "ERROR" + "\n";
+
+        String s1 = "SUCCESS:::Removed (y)" + "\n";
+        String s2 = "ERROR::: Failure" + "\n";
         return verif ? s1 : s2;
     }
 
@@ -340,7 +352,7 @@ public class ThreadActivity extends Thread {
             case "id":
                 for (Annonce a : list) {
                     if (a.getAnnonceId() == Integer.parseInt(contentOfWhat)) {
-                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "\n";
+                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -348,7 +360,7 @@ public class ThreadActivity extends Thread {
             case "domaine":
                 for (Annonce a : list) {
                     if (a.getDomaine().equals(contentOfWhat)) {
-                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "\n";
+                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -356,7 +368,7 @@ public class ThreadActivity extends Thread {
             case "prix":
                 for (Annonce a : list) {
                     if (a.getPrix() == Integer.parseInt(contentOfWhat)) {
-                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo() + "\n";
+                        res = a.getAnnonceId() + ":::" + a.getDomaine() + ":::" + a.getPrix() + ":::" + a.getDescriptif() + ":::" + a.getPseudo();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -375,7 +387,7 @@ public class ThreadActivity extends Thread {
             case "id":
                 for (Compte a : list) {
                     if (a.getId() == Integer.parseInt(contentOfWhat)) {
-                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -383,7 +395,7 @@ public class ThreadActivity extends Thread {
             case "pseudo":
                 for (Compte a : list) {
                     if (a.getPseudo().equals(contentOfWhat)) {
-                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -391,7 +403,7 @@ public class ThreadActivity extends Thread {
             case "adress":
                 for (Compte a : list) {
                     if (a.getAdress().equals(contentOfWhat)/* InetAddress.getByName(contentOfWhat)*/) {
-                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -399,7 +411,7 @@ public class ThreadActivity extends Thread {
             case "port":
                 for (Compte a : list) {
                     if (a.getPortClient() == Integer.parseInt(contentOfWhat)) {
-                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient() + "\n";
+                        res = a.getId() + ":::" + a.getPseudo() + ":::" + a.getAdress() + ":::" + a.getPortClient();
                         tmp.add(res);
                     }// pour differencier
                 }
@@ -417,7 +429,7 @@ public class ThreadActivity extends Thread {
             if (c.getPseudo().equals(pseudo)) {
                 Socket s = new Socket(c.getAdress(), c.getPortClient());
                 DataOutputStream outToClient = new DataOutputStream(s.getOutputStream());
-                outToClient.writeBytes(""); // envoie de message
+                outToClient.writeBytes(AES.encrypt("", "EZ4ENCE")+'\n'); // envoie de message
             }
         }
     }
